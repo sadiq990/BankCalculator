@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kredit Kalkulyatoru</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              light: '#3b82f6', // blue-500
+              dark: '#60a5fa'  // blue-400
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom styles for better slider appearance */
+    input[type="range"] {
+      -webkit-appearance: none;
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 4px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .dark input[type="range"] {
+      background: #374151;
+    }
+    .dark input[type="range"]::-webkit-slider-thumb {
+      background: #60a5fa;
+    }
+    /* Custom scrollbar for payment table */
+    .payment-table-container::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .payment-table-container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    .dark .payment-table-container::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+    .payment-table-container::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+    .dark .payment-table-container::-webkit-scrollbar-thumb {
+      background: #4b5563;
+    }
+    .payment-table-container::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+    .dark .payment-table-container::-webkit-scrollbar-thumb:hover {
+      background: #6b7280;
+    }
+    /* Animation for theme toggle */
+    .theme-toggle {
+      transition: all 0.3s ease;
+    }
+    .theme-toggle:hover {
+      transform: rotate(45deg);
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans transition-colors duration-200 dark:bg-gray-900">
+  <div class="max-w-6xl mx-auto mt-6 md:mt-10 bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-md transition-colors duration-200">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">Kredit kalkulyatoru</h1>
+      <button id="themeToggle" class="theme-toggle p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+        <!-- Sun icon -->
+        <svg id="lightIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <!-- Moon icon -->
+        <svg id="darkIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
+    </div>
+    
+    <p class="text-gray-600 dark:text-gray-300 mb-6 text-sm md:text-base">
+      Kredit kalkulyatoru vasitəsi ilə öz hesabınızı özünüz rahatlıqla edə biləcəksiniz. Kredit məbləği ilə müddətini daxil edərək, aylıq ödənişi və ümumi məbləği oturduğunuz yerdən hesablamaq mümkündür.
+    </p>
+
+    <div class="grid md:grid-cols-3 gap-4 md:gap-6">
+      <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg transition-colors duration-200">
+        <label class="block text-gray-700 dark:text-gray-200 font-medium mb-2">Kredit məbləği (AZN)</label>
+        <input type="range" id="loanAmount" min="300" max="40000" value="5000" step="100"
+          class="w-full mb-2" oninput="document.getElementById('loanAmountValue').textContent = this.value; calculateLoan();">
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-500 dark:text-gray-400">300</span>
+          <span class="text-sm font-medium text-blue-600 dark:text-blue-400" id="loanAmountValue">5000</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400">40000</span>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg transition-colors duration-200">
+        <label class="block text-gray-700 dark:text-gray-200 font-medium mb-2">Kredit müddəti (ay)</label>
+        <input type="range" id="loanTerm" min="3" max="59" value="6"
+          class="w-full mb-2" oninput="document.getElementById('loanTermValue').textContent = this.value; calculateLoan();">
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-500 dark:text-gray-400">3</span>
+          <span class="text-sm font-medium text-blue-600 dark:text-blue-400" id="loanTermValue">6</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400">59</span>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg transition-colors duration-200">
+        <label class="block text-gray-700 dark:text-gray-200 font-medium mb-2">Faiz dərəcəsi (%)</label>
+        <input type="range" id="interestRate" min="10.9" max="30" value="10.9" step="0.1"
+          class="w-full mb-2" oninput="document.getElementById('interestRateValue').textContent = this.value; calculateLoan();">
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-500 dark:text-gray-400">10.9</span>
+          <span class="text-sm font-medium text-blue-600 dark:text-blue-400" id="interestRateValue">10.9</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400">30</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 md:mt-6">
+      <label class="block text-gray-700 dark:text-gray-200 font-medium mb-2">Valyuta seçin</label>
+      <select id="currency" class="border rounded px-4 py-2 w-full md:w-48 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200" onchange="calculateLoan()">
+        <option value="₼" selected>AZN</option>
+        <option value="$">USD</option>
+        <option value="€">EUR</option>
+      </select>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-6 md:mt-8">
+      <div class="bg-blue-50 dark:bg-blue-900/30 p-6 rounded-xl transition-colors duration-200">
+        <div class="mb-4">
+          <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">Aylıq ödəniş</p>
+          <p id="monthlyPayment" class="text-2xl md:text-3xl font-bold text-blue-600 dark:text-blue-400">860.03 ₼</p>
+        </div>
+        <div class="mb-4">
+          <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">Ümumi məbləğ</p>
+          <p id="totalPayment" class="text-2xl md:text-3xl font-bold text-blue-600 dark:text-blue-400">5160.18 ₼</p>
+        </div>
+        <div>
+          <p class="text-lg font-semibold text-gray-700 dark:text-gray-200">Ümumi faiz</p>
+          <p id="totalInterest" class="text-2xl md:text-3xl font-bold text-blue-600 dark:text-blue-400">160.18 ₼</p>
+        </div>
+      </div>
+      <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+        <div class="h-64 md:h-72">
+          <canvas id="loanChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-8">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Ödəniş Planı</h2>
+        <button id="downloadPdf" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+          PDF yüklə
+        </button>
+      </div>
+      <div class="payment-table-container overflow-auto rounded-lg border border-gray-200 dark:border-gray-700 max-h-96 transition-colors duration-200">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="bg-blue-600 dark:bg-blue-700 text-white">
+              <th class="px-4 py-3 text-left">Ay</th>
+              <th class="px-4 py-3 text-right">Aylıq ödəniş</th>
+              <th class="px-4 py-3 text-right">Faiz hissəsi</th>
+              <th class="px-4 py-3 text-right">Əsas hissə</th>
+              <th class="px-4 py-3 text-right">Qalan borc</th>
+            </tr>
+          </thead>
+          <tbody id="paymentTable" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="mt-6 flex flex-col sm:flex-row gap-3">
+      <button id="downloadPdfBottom" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors duration-200 flex-1 flex items-center justify-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+        PDF olaraq yüklə
+      </button>
+      <button class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors duration-200 flex-1 flex items-center justify-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd" />
+        </svg>
+        Krediti alın
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function calculateLoan() {
+      const amount = parseFloat(document.getElementById("loanAmount").value);
+      const months = parseInt(document.getElementById("loanTerm").value);
+      const rate = parseFloat(document.getElementById("interestRate").value) / 100;
+      const currency = document.getElementById("currency").value;
+
+      const monthlyRate = rate / 12;
+      const monthlyPayment =
+        (amount * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
+      const totalPayment = monthlyPayment * months;
+      const totalInterest = totalPayment - amount;
+
+      document.getElementById("monthlyPayment").textContent = monthlyPayment
+        .toFixed(2) + " " + currency;
+      document.getElementById("totalPayment").textContent = totalPayment
+        .toFixed(2) + " " + currency;
+      document.getElementById("totalInterest").textContent = totalInterest
+        .toFixed(2) + " " + currency;
+
+      generateSchedule(amount, months, monthlyRate, monthlyPayment, currency);
+      renderChart(totalInterest, amount);
+    }
+
+    function generateSchedule(amount, months, monthlyRate, monthlyPayment, currency) {
+      const tableBody = document.getElementById("paymentTable");
+      tableBody.innerHTML = "";
+
+      let remaining = amount;
+      let totalInterest = 0;
+      
+      for (let i = 1; i <= months; i++) {
+        const interest = remaining * monthlyRate;
+        const principal = monthlyPayment - interest;
+        remaining -= principal;
+        totalInterest += interest;
+
+        const row = document.createElement('tr');
+        const isDark = document.documentElement.classList.contains('dark');
+        
+        // Fixed: Use light text color for dark mode
+        row.className = isDark ? 
+          (i % 2 === 0 ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-800 hover:bg-gray-600') + ' text-gray-200' : 
+          (i % 2 === 0 ? 'bg-gray-50 hover:bg-blue-50' : 'bg-white hover:bg-blue-50') + ' text-gray-700';
+        
+        row.innerHTML = `
+          <td class="border border-gray-200 dark:border-gray-700 px-4 py-2">${i}</td>
+          <td class="border border-gray-200 dark:border-gray-700 px-4 py-2 text-right">${monthlyPayment.toFixed(2)} ${currency}</td>
+          <td class="border border-gray-200 dark:border-gray-700 px-4 py-2 text-right">${interest.toFixed(2)} ${currency}</td>
+          <td class="border border-gray-200 dark:border-gray-700 px-4 py-2 text-right">${principal.toFixed(2)} ${currency}</td>
+          <td class="border border-gray-200 dark:border-gray-700 px-4 py-2 text-right">${Math.max(remaining, 0).toFixed(2)} ${currency}</td>
+        `;
+
+        tableBody.appendChild(row);
+      }
+    }
+
+    function renderChart(interest, principal) {
+      const ctx = document.getElementById('loanChart').getContext('2d');
+      if (window.myChart) window.myChart.destroy();
+      
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      const textColor = isDarkMode ? '#e5e7eb' : '#374151';
+      
+      // Chart configuration with better styling and dark mode support
+      window.myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Ümumi faiz', 'Əsas məbləğ'],
+          datasets: [{
+            data: [interest, principal],
+            backgroundColor: isDarkMode ? 
+              ['#ef4444', '#3b82f6'] : // dark mode colors
+              ['#ef4444', '#3b82f6'], // light mode colors
+            borderWidth: 0,
+            hoverOffset: 10
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: textColor,
+                font: {
+                  size: 14,
+                  family: "'Inter', sans-serif"
+                },
+                padding: 20,
+                usePointStyle: true,
+                pointStyle: 'circle'
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = Math.round((value / total) * 100);
+                  return `${label}: ${value.toFixed(2)} (${percentage}%)`;
+                }
+              }
+            }
+          },
+          cutout: '65%',
+          animation: {
+            animateScale: true,
+            animateRotate: true
+          }
+        }
+      });
+    }
+
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      
+      // Create a new instance with custom encoding to support Azerbaijani characters
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        hotfixes: ['px_scaling']
+      });
+      
+      // Add custom Unicode font support
+      doc.addFont("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf", "Roboto", "normal");
+      doc.setFont("Roboto");
+      
+      // Current date - format for Azerbaijani style
+      const date = new Date();
+      const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+      
+      // Title
+      doc.setFontSize(22);
+      doc.setTextColor(59, 130, 246); // Blue color
+      doc.setFont(undefined, 'bold');
+      
+      // Use encoding-safe version for the headings
+      const encodeSafeTitleText = "Odenis Plani"; // Simplified version without special chars
+      doc.text(encodeSafeTitleText, 105, 20, { align: 'center' });
+      
+      // Horizontal line
+      doc.setDrawColor(200, 200, 200);
+      doc.line(20, 25, 190, 25);
+      
+      // Date
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont(undefined, 'normal');
+      doc.text(`Tarix: ${formattedDate}`, 20, 35);
+      
+      // Loan details with simplified text
+      doc.setFontSize(12);
+      doc.setTextColor(30, 30, 30);
+      doc.setFont(undefined, 'bold');
+      doc.text("Kredit melumatlari", 20, 45);
+      
+      // Use Latin alphabet alternatives for special characters
+      const amount = document.getElementById("loanAmount").value;
+      const term = document.getElementById("loanTerm").value;
+      const rate = document.getElementById("interestRate").value;
+      const monthlyPayment = document.getElementById("monthlyPayment").textContent.replace('ə', 'e');
+      const totalPayment = document.getElementById("totalPayment").textContent.replace('ə', 'e');
+      const totalInterest = document.getElementById("totalInterest").textContent.replace('ə', 'e');
+      const currency = document.getElementById("currency").value;
+      
+      // Loan summary with simplified encoding
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.text(`Kredit meblegi: ${amount} ${currency}`, 20, 55);
+      doc.text(`Muddet: ${term} ay`, 20, 62);
+      doc.text(`Faiz derecesi: ${rate}%`, 20, 69);
+      doc.text(`Ayliq odenis: ${monthlyPayment}`, 20, 76);
+      doc.text(`Umumi odenis: ${totalPayment}`, 20, 83);
+      doc.text(`Umumi faiz: ${totalInterest}`, 20, 90);
+      
+      // Section title
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text("Odenis Cedveli", 20, 105);
+      
+      // Prepare table data with simplified encoding
+      const rows = [];
+      const paymentTableRows = document.querySelectorAll("#paymentTable tr");
+      
+      for (let i = 0; i < paymentTableRows.length; i++) {
+        const cells = paymentTableRows[i].querySelectorAll("td");
+        if (cells.length > 0) {
+          rows.push([
+            cells[0].innerText,
+            cells[1].innerText.replace('ə', 'e'),
+            cells[2].innerText.replace('ə', 'e'),
+            cells[3].innerText.replace('ə', 'e'),
+            cells[4].innerText.replace('ə', 'e')
+          ]);
+        }
+      }
+      
+      // Column headers with simplified encoding
+      const headers = [["Ay", "Ayliq odenis", "Faiz hissesi", "Esas hisse", "Qalan borc"]];
+      
+      // Add payment schedule table
+      doc.autoTable({
+        startY: 110,
+        head: headers,
+        body: rows,
+        headStyles: {
+          fillColor: [59, 130, 246],
+          textColor: 255,
+          fontStyle: 'bold'
+        },
+        alternateRowStyles: {
+          fillColor: [245, 247, 250]
+        },
+        styles: {
+          cellPadding: 3,
+          fontSize: 9,
+          halign: 'right'
+        },
+        columnStyles: {
+          0: { halign: 'center' }
+        },
+        margin: { top: 110 }
+      });
+      
+      // Footer with simplified encoding
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text("Kredit Kalkulyatoru © 2025", 105, doc.internal.pageSize.height - 10, { align: 'center' });
+        doc.text(`Sehife ${i} / ${pageCount}`, 190, doc.internal.pageSize.height - 10, { align: 'right' });
+      }
+      
+      doc.save("Odenis_Plani.pdf");
+    }
+
+    // Initialize theme based on system preference
+    function initTheme() {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('lightIcon').classList.add('hidden');
+        document.getElementById('darkIcon').classList.remove('hidden');
+      }
+    }
+
+    // Toggle theme function
+    function toggleTheme() {
+      if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('darkIcon').classList.add('hidden');
+        document.getElementById('lightIcon').classList.remove('hidden');
+      } else {
+        document.documentElement.classList.add('dark');
+        document.getElementById('lightIcon').classList.add('hidden');
+        document.getElementById('darkIcon').classList.remove('hidden');
+      }
+      // Recalculate loan to update table styles and chart
+      calculateLoan();
+    }
+
+    // Event listeners and initialization
+    window.onload = function() {
+      initTheme();
+      calculateLoan();
+      
+      // Add event listeners
+      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+      document.getElementById('downloadPdf').addEventListener('click', downloadPDF);
+      document.getElementById('downloadPdfBottom').addEventListener('click', downloadPDF);
+    };
+  </script>
+</body>
+</html>
